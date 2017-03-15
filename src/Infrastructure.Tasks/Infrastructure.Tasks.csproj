@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <Authors>lyson@outlook.com</Authors>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Company>Infrastructure</Company>
+    <Description>bootstrap your background task for .net core applications</Description>
+    <Copyright>Copyright (c) lyson@outlook.com All rights reserved.</Copyright>
+    <PackageLicenseUrl>https://github.com/dotli/Infrastructure.Tasks/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/dotli/Infrastructure.Tasks</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dotli/Infrastructure.Tasks.git</RepositoryUrl>
+    <PackageTags>netcore background task</PackageTags>
+  </PropertyGroup>
+
+</Project>
