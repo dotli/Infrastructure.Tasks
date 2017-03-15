@@ -11,6 +11,11 @@
     <PackageProjectUrl>https://github.com/dotli/Infrastructure.Tasks</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dotli/Infrastructure.Tasks.git</RepositoryUrl>
     <PackageTags>netcore background task</PackageTags>
+    <Version>1.0.1</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\..\build\Release\netcoreapp1.1\</OutputPath>
   </PropertyGroup>
 
 </Project>
