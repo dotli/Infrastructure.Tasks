@@ -141,14 +141,12 @@ namespace Infrastructure.Tasks
         /// <exception cref="ArgumentNullException">当serviceName为null或System.String.Empty时引发该异常。</exception>
         protected BackgroundTaskService(string serviceName)
         {
-            if (string.IsNullOrEmpty(serviceName))
+            if (string.IsNullOrWhiteSpace(serviceName))
             {
                 throw new ArgumentNullException("serviceName");
             }
 
             ServiceName = serviceName;
-            TaskIdleTime = TimeSpan.FromMinutes(10);
-            TaskBusyTime = TimeSpan.FromSeconds(1);
             MaxServiceRunnum = Environment.ProcessorCount * 12;
         }
 
