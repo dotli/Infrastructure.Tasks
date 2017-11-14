@@ -13,22 +13,12 @@ namespace Infrastructure.Tasks
         #region constructors
 
         /// <summary>
-        /// 构造函数。初始化<see cref="BackgroundTaskThread"/>类的新实例。
-        /// </summary>
-        public BackgroundTaskThread()
-            : this("BackgroundTaskThread")
-        {
-        }
-        /// <summary>
         /// 构造函数。以指定的线程名称初始化<see cref="BackgroundTaskThread"/>类的新实例。
         /// </summary>
         /// <param name="threadName">线程名称。</param>
-        public BackgroundTaskThread(string threadName)
+        public BackgroundTaskThread(string threadName = "BackgroundTaskThread")
         {
-            Id = Guid.NewGuid();
             Name = threadName;
-            TaskIdleTime = TimeSpan.FromMinutes(5);
-            TaskBusyTime = TimeSpan.FromSeconds(1);
         }
 
         #endregion
@@ -50,7 +40,7 @@ namespace Infrastructure.Tasks
         /// <summary>
         /// 获取工作线程ID。
         /// </summary>
-        public Guid Id { get; private set; }
+        public Guid Id { get; private set; } = Guid.NewGuid();
         /// <summary>
         /// 获取或设置工作线程的名称。
         /// </summary>
@@ -66,11 +56,11 @@ namespace Infrastructure.Tasks
         /// <summary>
         /// 获取或设置任务空闲时工作线程的休眠时间（默认5分钟）。
         /// </summary>
-        public TimeSpan TaskIdleTime { get; set; }
+        public TimeSpan TaskIdleTime { get; set; } = TimeSpan.FromMinutes(5);
         /// <summary>
         /// 获取或设置任务非空闲时工作线程的休眠时间。（默认1秒）。
         /// </summary>
-        public TimeSpan TaskBusyTime { get; set; }
+        public TimeSpan TaskBusyTime { get; set; } = TimeSpan.FromSeconds(1);
         #endregion
 
         #region events
@@ -224,7 +214,7 @@ namespace Infrastructure.Tasks
             }
             TaskWaitHandle.Dispose();
             TaskWaitHandle = null;
-            
+
             //通知工作线程已退出。
             OnTaskThreadStoped(new TaskThreadExitEventArgs(this));
         }

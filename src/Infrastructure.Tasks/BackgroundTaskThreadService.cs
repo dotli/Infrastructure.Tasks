@@ -24,14 +24,12 @@ namespace Infrastructure.Tasks
         /// <exception cref="ArgumentNullException">当serviceName为null或System.String.Empty时引发该异常。</exception>
         public BackgroundTaskThreadService(string serviceName)
         {
-            if (string.IsNullOrEmpty(serviceName))
+            if (string.IsNullOrWhiteSpace(serviceName))
             {
                 throw new ArgumentNullException(nameof(serviceName));
             }
 
             Name = serviceName;
-            TaskIdleTime = TimeSpan.FromMinutes(5);
-            TaskBusyTime = TimeSpan.FromSeconds(1);
             ThreadCount = Environment.ProcessorCount * 12;
         }
 
@@ -50,7 +48,7 @@ namespace Infrastructure.Tasks
         /// <summary>
         /// 获取服务运行状态。
         /// </summary>
-        public bool IsRunning { get { return this.serviceRunning; } }
+        public bool IsRunning { get { return serviceRunning; } }
         /// <summary>
         /// 获取或设置服务名称
         /// </summary>
