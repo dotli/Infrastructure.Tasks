@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Infrastructure.Tasks.Tests
 {
@@ -106,7 +107,7 @@ namespace Infrastructure.Tasks.Tests
 
     internal class ConcreteTaskThread : BackgroundTaskThread
     {
-        protected override BackgroundTask GetTask()
+        protected override async Task<BackgroundTask> GetTask()
         {
             // 这里从内存任务队列获取目标任务，也可以是从数据库等其它地方获取。
             ConcreteData.TryDequeue(out ConcreteTask task);
@@ -120,7 +121,7 @@ namespace Infrastructure.Tasks.Tests
             // 因为，服务调度是根据这里返回的Task决定是否要执行ExecuteTask里面的逻辑。
             // 如：
             // return new BackgroundTask();
-
+            await Task.CompletedTask;
             return task;
         }
 
