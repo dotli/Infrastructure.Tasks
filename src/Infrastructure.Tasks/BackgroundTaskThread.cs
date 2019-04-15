@@ -4,6 +4,7 @@ namespace Infrastructure.Tasks
 {
     using System;
     using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// 定义工作任务执行线程单元。
@@ -147,7 +148,7 @@ namespace Infrastructure.Tasks
         /// <example>return new BackgroundTask();</example>
         /// </remarks>
         /// <returns>返回<see cref="BackgroundTask"/>类型的任务。</returns>
-        protected abstract BackgroundTask GetTask();
+        protected abstract Task<BackgroundTask> GetTask();
 
         /// <summary>
         /// 目标任务执行主逻辑。
@@ -158,7 +159,7 @@ namespace Infrastructure.Tasks
         /// <summary>
         /// 工作线程周期执行任务。
         /// </summary>
-        private void ThreadWork()
+        private async void ThreadWork()
         {
             while (Running)
             {
@@ -166,7 +167,7 @@ namespace Infrastructure.Tasks
                 BackgroundTask task = null;
                 try
                 {
-                    task = GetTask();
+                    task = await GetTask();
                 }
                 catch (Exception ex)
                 {
