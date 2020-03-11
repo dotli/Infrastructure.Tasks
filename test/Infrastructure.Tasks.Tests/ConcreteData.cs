@@ -9,7 +9,7 @@ namespace Infrastructure.Tasks.Tests
   internal static class ConcreteData
   {
     // 模拟任务来自内存队列，实际任务数据可以是来自数据库。
-    private static ConcurrentQueue<ConcreteTask> tasks = new ConcurrentQueue<ConcreteTask>();
+    private static readonly ConcurrentQueue<ConcreteTask> tasks = new ConcurrentQueue<ConcreteTask>();
 
     public static int AddTasks(int num)
     {

@@ -9,7 +9,7 @@ namespace Infrastructure.Tasks.Tests
         : base("ConreteTaskThreadService")
     {
       // 设置最大工作线程数。默认12倍当前计算机处理器数。
-      ThreadCount = 2;
+      ThreadCount = 4;
 
       // 设置任务空闲时调度任务的频率（默认5分钟）
       TaskIdleTime = TimeSpan.FromSeconds(5);
@@ -26,7 +26,7 @@ namespace Infrastructure.Tasks.Tests
 
     public static void Run()
     {
-      //初始化具体服务类
+      // 初始化具体服务类
       var conreteService = new ConcreteTaskThreadService();
       conreteService.ThreadStarted += ConreteService_ThreadStarted;
       conreteService.ThreadExited += ConreteService_ThreadExited;
@@ -38,12 +38,12 @@ namespace Infrastructure.Tasks.Tests
       // 如果在Windows服务中可以在OnStart事件里面调用
       conreteService.Start();
 
-      Console.WriteLine("{0}\t{1} Started\r\n\t\tThreadCount={2},TaskIdleTime={3}ms,TaskBusyTime={4}ms",
+      Console.WriteLine("{0}\t{1} Started\r\n\tThreadCount={2}, TaskIdleTime={3}ms, TaskBusyTime={4}ms",
           DateTime.Now.ToLongTimeString(),
           conreteService.Name,
           conreteService.ThreadCount.ToString(),
           conreteService.TaskIdleTime.TotalMilliseconds.ToString(),
-          conreteService.TaskBusyTime.Milliseconds.ToString());
+          conreteService.TaskBusyTime.TotalMilliseconds.ToString());
 
       while (true)
       {
@@ -68,42 +68,41 @@ namespace Infrastructure.Tasks.Tests
         }
       }
 
-
       Console.Read();
     }
 
     static void ConreteService_ThreadStarted(object sender, TaskThreadStartedEventArgs e)
     {
       var thread = (ConcreteTaskThread)sender;
-      Console.WriteLine("{0}\t{1} started.",
+      Console.WriteLine("{0}\t{1} Started.",
           DateTime.Now.ToLongTimeString(), thread.Name);
     }
 
     static void ConreteService_TaskExecuting(object sender, TaskExecutingEventArgs<ConcreteTask> e)
     {
       var thread = (ConcreteTaskThread)sender;
-      Console.WriteLine("{0}\t{1} executing task({2})...",
+      Console.WriteLine("{0}\t{1} Executing task({2})...",
           DateTime.Now.ToLongTimeString(), thread.Name, e.Task.Id.ToString());
     }
 
     static void ConreteService_TaskExecuted(object sender, TaskExecutedEventArgs<ConcreteTask> e)
     {
       var thread = (ConcreteTaskThread)sender;
-      Console.WriteLine("{0}\t{1} executed task({2}) with {3}ms.",
+      Console.WriteLine("{0}\t{1} Executed task({2}) with {3}ms.",
           DateTime.Now.ToLongTimeString(), thread.Name, e.Task.Id.ToString(), e.Milliseconds.ToString());
     }
 
     static void ConreteService_ThreadExited(object sender, TaskThreadExitedEventArgs e)
     {
       var thread = (ConcreteTaskThread)sender;
-      Console.WriteLine("{0}\t{1} exited.",
+      Console.WriteLine("{0}\t{1} Exited.",
           DateTime.Now.ToLongTimeString(), thread.Name);
     }
 
     static void ConreteService_ServiceStoped(object sender, ServiceStopEventArgs e)
     {
       var service = (ConcreteTaskThreadService)sender;
-      Console.WriteLine("{0}\t{1} stoped with {2}.",
+      Console.WriteLine("{0}\t{1} Stoped with {2}.",
           DateTime.Now.ToLongTimeString(), service.Name, e.IsSafeExited ? "safely" : "unsafely");
     }
   }
@@ -112,11 +111,16 @@ namespace Infrastructure.Tasks.Tests
   {
     protected override async Task<ConcreteTask> GetTaskAsync()
     {
+      Console.WriteLine("{0}\t{1} GetTaskAsync.",
+          DateTime.Now.ToLongTimeString(), Name);
+
+      System.Threading.Thread.Sleep(500);
+
       // 这里从内存任务队列获取目标任务，也可以是从数据库等其它地方获取。
       ConcreteData.TryDequeue(out ConcreteTask task);
 
       if (task == null)
-        Console.WriteLine("{0}\t{1} running with empty task.",
+        Console.WriteLine("{0}\t{1} Returned empty task.",
             DateTime.Now.ToLongTimeString(), Name);
 
       // 注意：

@@ -369,13 +369,11 @@ namespace Infrastructure.Tasks
         TimeSpan timeout = ExitWaitTimeout > 0 ?
             TimeSpan.FromSeconds(ExitWaitTimeout) :
             TimeSpan.FromMilliseconds(-1);
-        System.Diagnostics.Debug.WriteLine(string.Format("ready to wait {0}s.", timeout.TotalSeconds), Name);
+
         IsSafeExited = SafeExitWaitHandle.WaitOne(timeout);
         SafeExitWaitHandle.Dispose();
         SafeExitWaitHandle = null;
       }
-
-      System.Diagnostics.Debug.WriteLine("trigger ServiceStoped event.", Name);
 
       // 通知服务已停止。
       OnServiceStoped(new ServiceStopEventArgs(IsSafeExited));

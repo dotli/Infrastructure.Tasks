@@ -1,14 +1,14 @@
-﻿using System;
-using System.Threading;
-
-namespace Infrastructure.Tasks.Tests
+﻿namespace Infrastructure.Tasks.Tests
 {
-    class Program
+  class Program
+  {
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
-        {
-            ConcreteData.AddTasks(10);
-            ConcreteTaskThreadService.Run();
-        }
+      ConcreteData.AddTasks(4);
+
+      //ConcreteTaskThreadService.Run();
+      //ConcreteBackgroundTaskService.Run();
+      AutoStopableBackgroundTaskService.Run();
     }
+  }
 }
