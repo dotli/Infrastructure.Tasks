@@ -9,64 +9,86 @@ namespace Infrastructure.Tasks.Tests
     public ConcreteBackgroundTaskService(string serviceName = nameof(ConcreteBackgroundTaskService)) : base(serviceName)
     {
       AllowedThreadMax = 2;
-      TaskBusyTime = TimeSpan.FromMilliseconds(50);
+      TaskBusyTime = TimeSpan.FromMilliseconds(500);
       TaskIdleTime = TimeSpan.FromSeconds(1);
+    }
+
+    protected override void LogInfo(string message, params object[] args)
+    {
+      Logger.Trace(message, args);
+    }
+
+    protected override void LogTrace(string message, params object[] args)
+    {
+      Logger.Trace(message, args);
     }
 
     protected override async Task<ConcreteTask> GetTaskAsync()
     {
-      LogTrace("{0}\t    WorkThread-{1} GetTaskAsync.",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+      LogTrace("  Thread-{0} GetTaskAsync.", Thread.CurrentThread.ManagedThreadId);
 
-      Thread.Sleep(500);
+      await Task.Delay(500);
 
       // 这里从内存任务队列获取目标任务，也可以是从数据库等其它地方获取。
       ConcreteData.TryDequeue(out ConcreteTask task);
 
       if (task == null)
-        LogTrace("{0}\t    WorkThread-{1} Returned empty task.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+        LogTrace("  Thread-{0} Returned empty task.", Thread.CurrentThread.ManagedThreadId);
 
       // 注意：
-      // 如果不需要任务数据时，也请返回一个默认的BackgroundTask实例。
-      // 因为，服务调度是根据这里返回的Task决定是否要执行ExecuteTask里面的逻辑。
+      // 如果不需要任务数据时，也请返回一个默认的 BackgroundTask 实例。
+      // 因为，服务调度是根据这里返回的 Task 决定是否要执行 ExecuteTask 里面的逻辑。
       // 如：
       // return new BackgroundTask();
-      await Task.CompletedTask;
       return task;
     }
 
     protected override Task ExecuteTaskAsync(ConcreteTask task)
     {
-      LogTrace("{0}\t    WorkThread-{1} ExecuteTaskAsync(TaskId={2}).",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, task.Id);
+      LogTrace("  Thread-{0} ExecuteTaskAsync(TaskId={1}).", Thread.CurrentThread.ManagedThreadId, task.Id);
 
-      Thread.Sleep(1000);
-      return Task.CompletedTask;
+      return Task.Delay(1000);
     }
 
     public static void Run()
     {
       // 初始化具体服务类
-      var conreteService = new ConcreteBackgroundTaskService();
+      var concreteService = new ConcreteBackgroundTaskService();
 
-      conreteService.ThreadChanged += (currentThreadCount) =>
+      concreteService.ThreadChanged += (currentThreadCount) =>
       {
-        conreteService.LogTrace("{0}\tThread-{1} Reported CurrentThreadCount = {2}.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, currentThreadCount);
+        Logger.Trace("Thread-{0} Reported CurrentThreadCount = {1}.",
+            Thread.CurrentThread.ManagedThreadId, currentThreadCount);
       };
 
       // 开始启动服务。
-      // 如果在Windows服务中可以在OnStart事件里面调用
-      conreteService.Start();
+      // 如果在 Windows 服务中可以在 OnStart 事件里面调用
+      concreteService.Start();
 
-      conreteService.LogTrace("{0}\t{1} Started\r\n\t\tAllowedThreadMax={2}, TaskIdleTime={3}ms, TaskBusyTime={4}ms",
-          DateTime.Now.ToLongTimeString(),
-          conreteService.ServiceName,
-          conreteService.AllowedThreadMax.ToString(),
-          conreteService.TaskIdleTime.TotalMilliseconds.ToString(),
-          conreteService.TaskBusyTime.TotalMilliseconds.ToString());
+      while (true)
+      {
+        ConsoleKeyInfo keyInfo = Console.ReadKey(false);
+        if (keyInfo.Key == ConsoleKey.Escape)
+        {
+          // 停止服务。如果在 Windows 服务中可以在 OnStop 事件里面调用
+          concreteService.Stop();
+          concreteService.Dispose();
+          break;
+        }
 
+        if (keyInfo.Key == ConsoleKey.A)
+        {
+          Console.WriteLine("Input the task num:");
+          string taskNumStr = Console.ReadLine();
+          int.TryParse(taskNumStr, out int taskNum);
+          if (taskNum > 0)
+            taskNum = ConcreteData.AddTasks(taskNum);
+          Console.WriteLine("{0}  Add new tasks:{1}",
+              DateTime.Now.ToLongTimeString(), taskNum.ToString());
+        }
+      }
+
+      Console.WriteLine("Press any key to exit.");
       Console.Read();
     }
   }

@@ -116,6 +116,13 @@ namespace Infrastructure.Tasks
         }
       }
     }
+    /// <summary>
+    /// Gets a unique identifier for the current managed thread.
+    /// </summary>
+    protected int CurrentThreadId
+    {
+      get { return Thread.CurrentThread.ManagedThreadId; }
+    }
     #endregion
 
     #region events
@@ -165,8 +172,7 @@ namespace Infrastructure.Tasks
     /// <returns></returns>
     private void IncrementWorkThread()
     {
-      LogTrace("{0}\tThread-{1} Increment WorkThread...",
-        DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+      LogTrace("Thread-{0} Increment WorkThread...", CurrentThreadId);
       Interlocked.Increment(ref currentThreadCount);
       ThreadChanged?.Invoke(CurrentThreadCount);
     }
@@ -177,25 +183,11 @@ namespace Infrastructure.Tasks
     /// <returns></returns>
     private void DecrementWorkThread()
     {
-      LogTrace("{0}\t    WorkThread-{1} Decrement WorkThread...",
-        DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+      if (CurrentThreadCount < 1) { return; }
 
-      if (CurrentThreadCount < 1)
-        return;
-
+      LogTrace("Thread-{0} Decrement WorkThread...", CurrentThreadId);
       Interlocked.Decrement(ref currentThreadCount);
       ThreadChanged?.Invoke(CurrentThreadCount);
-
-      if (CurrentThreadCount == 0)
-      {
-        // 如果当前工作线程数为0时，通知可以安全退出
-        if (ServiceSafeExitResetEvent != null)
-        {
-          LogTrace("{0}\t    WorkThread-{1} ServiceSafeExitResetEvent.Set...",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
-          ServiceSafeExitResetEvent.Set();
-        }
-      }
     }
 
     /// <summary>
@@ -240,9 +232,6 @@ namespace Infrastructure.Tasks
 
       do
       {
-        LogTrace("{0}\tThread-{1} Dispatching...",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
-
         // 如果有目标任务需要处理
         // 加快调度频率
         dispatchTimeout = IsTaskRapid ? TaskBusyTime : TaskIdleTime;
@@ -254,15 +243,14 @@ namespace Infrastructure.Tasks
           continue;
         }
 
+        LogTrace("Thread-{0} Dispatching...", CurrentThreadId);
+
         // 使当前工作线程数加1
         IncrementWorkThread();
 
-        LogTrace("{0}\tThread-{1} Start new WorkThread...",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
-
         Task.Run(async () =>
         {
-          Stopwatch stopWatch = Stopwatch.StartNew();
+          LogTrace("Thread-{0} Created and ready to work...", CurrentThreadId);
 
           // 获取目标任务
           TTask task = await GetTaskAsync();
@@ -276,42 +264,48 @@ namespace Infrastructure.Tasks
 
           // 有需要处理的数据
           IsTaskRapid = true;
-
-          try
-          {
-            await ExecuteTaskAsync(task);
-          }
-          finally
-          {
-            // 性能计数
-          }
+          await ExecuteTaskAsync(task);
 
         })
         // 任务执行完毕后需要一些操作
         .ContinueWith((t) =>
         {
-          // 执行任务完成后，使当前工作线程数减1
-          DecrementWorkThread();
-
-          if (t.IsFaulted)
+          try
           {
-            // 通知任务执行异常
-            Exception exp = t.Exception.InnerException ?? t.Exception;
-            OnThreadError(exp);
+            if (t.IsFaulted)
+            {
+              // 通知任务执行异常
+              Exception exp = t.Exception.InnerException ?? t.Exception;
+              OnThreadError(exp);
+            }
+          }
+          finally
+          {
+            // 执行任务完成后，使当前工作线程数减1
+            DecrementWorkThread();
+            ProcessServiceExitWaitHandle();
+
+            LogTrace("Thread-{0} Exited with {1} left thread.", CurrentThreadId, CurrentThreadCount);
           }
 
-          LogTrace("{0}\t    WorkThread-{1} Exited with {2} left thread.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, CurrentThreadCount);
-
-          if (CurrentThreadCount == 0 &&
-              ServiceSafeExitResetEvent != null)
-          {
-            // 通知服务现在可以安全退出
-            ServiceSafeExitResetEvent.Set();
-          }
         });
 
       } while (TaskDispatchResetEvent != null && TaskDispatchResetEvent.WaitOne(dispatchTimeout) == false);
+
+      ProcessServiceExitWaitHandle();
+      LogTrace("Thread-{0} Dispatch exited.", CurrentThreadId);
+    }
+
+    /// <summary>
+    /// 如果当前工作线程数为0时，通知可以安全退出
+    /// </summary>
+    private void ProcessServiceExitWaitHandle()
+    {
+      if (CurrentThreadCount == 0 && ServiceSafeExitResetEvent != null)
+      {
+        LogTrace("Thread-{0} Set ServiceSafeExitResetEvent.", CurrentThreadId);
+        ServiceSafeExitResetEvent.Set();
+      }
     }
 
     /// <summary>
@@ -349,10 +343,9 @@ namespace Infrastructure.Tasks
           TaskDispatchResetEvent = new AutoResetEvent(false);
           ServiceSafeExitResetEvent = new AutoResetEvent(false);
 
-          LogTrace("{0}\tThread-{1} Start Dispatching.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+          LogTrace("Thread-{0} Start Dispatching.", CurrentThreadId);
 
-          Task.Run(DispatchTasks)
+          Task.Factory.StartNew(DispatchTasks, TaskCreationOptions.LongRunning)
               .ContinueWith((t) =>
               {
                 // 服务运行结束
@@ -362,19 +355,20 @@ namespace Infrastructure.Tasks
                   TaskDispatchResetEvent.Dispose();
                   TaskDispatchResetEvent = null;
 
-                  LogTrace("{0}\tThread-{1} Disposed TaskDispatchResetEvent.",
-                    DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+                  LogTrace("Thread-{0} Disposed TaskDispatchResetEvent.", CurrentThreadId);
                 }
 
-                LogTrace("{0}\tThread-{1} Exited.",
-                  DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+                LogTrace("Thread-{0} Exited.", CurrentThreadId);
 
               });
 
-          LogTrace("{0}\tThread-{1} Dispatched.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+          LogTrace("Thread-{0} Dispatched.", CurrentThreadId);
 
-          LogTrace("服务 {0} 启动成功!", ServiceName);
+          LogInfo("{0} Started.  AllowedThreadMax={1}, TaskIdleTime={2}ms, TaskBusyTime={3}ms",
+              ServiceName,
+              AllowedThreadMax.ToString(),
+              TaskIdleTime.TotalMilliseconds.ToString(),
+              TaskBusyTime.TotalMilliseconds.ToString());
         }
       }
     }
@@ -388,6 +382,8 @@ namespace Infrastructure.Tasks
     /// </remarks>
     public void Stop()
     {
+      LogTrace("Thread-{0} Requests to stop {1}...", CurrentThreadId, ServiceName);
+
       if (disposed)
       {
         throw new ObjectDisposedException(GetType().Name);
@@ -395,42 +391,33 @@ namespace Infrastructure.Tasks
 
       if (!Running)
       {
-        LogTrace("{0}\t{1} Sikped stop with already stoped.",
-          DateTime.Now.ToLongTimeString(), ServiceName);
+        LogTrace("Thread-{0} {1} Already stoped.", CurrentThreadId, ServiceName);
         return;
       }
 
       lock (this)
       {
-        LogTrace("{0}\tThread-{1} Get stop lock.",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+        LogTrace("Thread-{0} Get stop lock.", CurrentThreadId);
 
         if (!Running)
         {
-          LogTrace("{0}\t{1} Sikped stop with already stoped.",
-            DateTime.Now.ToLongTimeString(), ServiceName);
+          LogTrace("Thread-{0} {1} Already stoped.", CurrentThreadId, ServiceName);
           return;
         }
 
         Running = false;
       }
 
-      LogTrace("{0}\tThread-{1} Stopping...",
-        DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
-
-      LogTrace(string.Format("服务 {0} 正在停止...", ServiceName));
+      LogTrace("Thread-{0} {1} Stopping...", CurrentThreadId, ServiceName);
 
       if (TaskDispatchResetEvent != null)
       {
         // 通知服务调度不再继续新的工作线程
         TaskDispatchResetEvent.Set();
-
-        LogTrace("{0}\tThread-{1} TaskDispatchResetEvent.Set",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+        LogTrace("Thread-{0} Set TaskDispatchResetEvent.", CurrentThreadId);
       }
 
-      LogTrace("{0}\tThread-{1} CurrentThreadCount = {2}",
-        DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, CurrentThreadCount);
+      LogTrace("Thread-{0} CurrentThreadCount = {1}.", CurrentThreadId, CurrentThreadCount);
 
       if (CurrentThreadCount > 0
           && ServiceSafeExitResetEvent != null)
@@ -441,20 +428,18 @@ namespace Infrastructure.Tasks
             TimeSpan.FromSeconds(WaitExitTimeout) :
             TimeSpan.FromMilliseconds(-1);
 
-        LogTrace("{0}\tThread-{1} ServiceSafeExitResetEvent.WaitOne({2}s)",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, timeout.TotalSeconds);
+        LogTrace("Thread-{0} ServiceSafeExitResetEvent.WaitOne({1}s).", CurrentThreadId, timeout.TotalSeconds);
 
         ServiceSafeExitResetEvent.WaitOne(timeout);
         ServiceSafeExitResetEvent.Dispose();
         ServiceSafeExitResetEvent = null;
 
-        LogTrace("{0}\tThread-{1} disposed ServiceSafeExitResetEvent.",
-          DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId);
+        LogTrace("Thread-{0} Disposed ServiceSafeExitResetEvent.", CurrentThreadId);
       }
 
       // 通知服务运行完毕
       OnServiceCompleted();
-      LogTrace("服务 {0} 已停止!", ServiceName);
+      LogInfo("{0} Stoped.", ServiceName);
     }
 
     #endregion

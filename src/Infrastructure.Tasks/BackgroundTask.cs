@@ -10,20 +10,13 @@ namespace Infrastructure.Tasks
   public abstract class BackgroundTask
   {
     /// <summary>
-    /// 初始化 <see cref="BackgroundTask"/> 类的新实例。
-    /// </summary>
-    public BackgroundTask()
-    {
-      Name = "BackgroundTask";
-    }
-    /// <summary>
     /// 定义任务ID。
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
     /// <summary>
     /// 定义任务的名称。
     /// </summary>
-    public string Name { get; set; } = "DefaultBackgroundTask";
+    public string Name { get; set; } = nameof(BackgroundTask);
   }
 
   /// <summary>

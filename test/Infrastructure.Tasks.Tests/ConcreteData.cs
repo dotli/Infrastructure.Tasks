@@ -23,7 +23,7 @@ namespace Infrastructure.Tasks.Tests
         });
       }
 
-      Console.WriteLine($"{DateTime.Now.ToLongTimeString()}\tConcreteData Append {num} new tasks.");
+      Logger.Trace($"ConcreteData Append {num} new tasks.");
       return tasks.Count;
     }
 

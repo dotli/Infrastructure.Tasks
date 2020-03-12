@@ -7,17 +7,24 @@
     <Company>Infrastructure</Company>
     <Description>bootstrap your background task for .net core applications</Description>
     <Copyright>Copyright (c) lyson@outlook.com All rights reserved.</Copyright>
-    <PackageLicenseUrl>https://github.com/dotli/Infrastructure.Tasks/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/dotli/Infrastructure.Tasks</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dotli/Infrastructure.Tasks.git</RepositoryUrl>
     <PackageTags>netcore background task</PackageTags>
     <Version>2.0.2</Version>
     <AssemblyVersion>2.0.2.0</AssemblyVersion>
     <FileVersion>2.0.2.0</FileVersion>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath>..\..\build\Release\netstandard2.0\</OutputPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>

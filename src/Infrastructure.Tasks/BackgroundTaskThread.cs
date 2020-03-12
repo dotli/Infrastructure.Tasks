@@ -3,6 +3,7 @@
 namespace Infrastructure.Tasks
 {
   using System;
+  using System.Diagnostics;
   using System.Threading;
   using System.Threading.Tasks;
 
@@ -82,6 +83,11 @@ namespace Infrastructure.Tasks
     #endregion
 
     #region methods
+
+    protected virtual void LogTrace(string message, params object[] args)
+    {
+      Debug.WriteLine(message, args);
+    }
 
     /// <summary>
     /// 通知工作线程已启动。

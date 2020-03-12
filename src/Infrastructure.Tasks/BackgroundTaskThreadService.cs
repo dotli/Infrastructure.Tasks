@@ -31,7 +31,7 @@ namespace Infrastructure.Tasks
       }
 
       Name = serviceName;
-      ThreadCount = Environment.ProcessorCount * 12;
+      AllowedThreadMax = Environment.ProcessorCount * 12;
     }
 
     #endregion
@@ -69,34 +69,34 @@ namespace Infrastructure.Tasks
     /// <summary>
     /// 目标任务执行工作线程数。
     /// </summary>
-    private int threadCount = 1;
+    private int allowdThreadMax = 1;
     /// <summary>
     /// 获取或设置工作线程数。默认12倍当前计算机处理器数。
     /// </summary>
-    public int ThreadCount
+    public int AllowedThreadMax
     {
       get
       {
-        return threadCount;
+        return allowdThreadMax;
       }
       set
       {
         if (value > 0)
         {
-          threadCount = value;
+          allowdThreadMax = value;
         }
       }
     }
     /// <summary>
     /// 当前正在执行任务的工作线程数
     /// </summary>
-    private int activeThreadCount = 0;
+    private volatile int currentThreadCount = 0;
     /// <summary>
     /// 获取当前正在执行任务的工作线程数。
     /// </summary>
-    public int ActiveThreadCount
+    public int CurrentThreadCount
     {
-      get { return activeThreadCount; }
+      get { return currentThreadCount; }
     }
     /// <summary>
     /// 获取或设置任务空闲时工作线程的休眠时间（默认5分钟）。
@@ -178,20 +178,20 @@ namespace Infrastructure.Tasks
     /// 使当前正在执行任务的工作线程数加1
     /// </summary>
     /// <returns></returns>
-    private void IncrementActiveThread()
+    private void IncrementWorkThread()
     {
-      Interlocked.Increment(ref activeThreadCount);
+      Interlocked.Increment(ref currentThreadCount);
     }
 
     /// <summary>
     /// 使当前正在执行任务的工作线程数减1。如果正在执行任务的工作线程数小于1则不做任何操作。
     /// </summary>
     /// <returns></returns>
-    private void DecrementActiveThread()
+    private void DecrementWorkThread()
     {
-      if (ActiveThreadCount > 0)
+      if (CurrentThreadCount > 0)
       {
-        Interlocked.Decrement(ref activeThreadCount);
+        Interlocked.Decrement(ref currentThreadCount);
       }
     }
 
@@ -222,7 +222,7 @@ namespace Infrastructure.Tasks
     /// <param name="e"></param>
     protected void OnTaskExecuting(object sender, TaskExecutingEventArgs<TTask> e)
     {
-      IncrementActiveThread();
+      IncrementWorkThread();
       TaskExecuting?.Invoke(sender, e);
     }
 
@@ -239,7 +239,7 @@ namespace Infrastructure.Tasks
         throw new ObjectDisposedException(nameof(BackgroundTaskThreadService<TTask, TThread>));
       }
 
-      DecrementActiveThread();
+      DecrementWorkThread();
       TaskExecuted?.Invoke(sender, e);
     }
 
@@ -252,7 +252,7 @@ namespace Infrastructure.Tasks
     {
       ThreadExited?.Invoke(sender, e);
 
-      if (ActiveThreadCount == 0 && SafeExitWaitHandle != null)
+      if (CurrentThreadCount == 0 && SafeExitWaitHandle != null)
       {
         SafeExitWaitHandle.Set();
       }
@@ -303,9 +303,9 @@ namespace Infrastructure.Tasks
 
     private void InitializeTaskThreads()
     {
-      TaskThreads = new TThread[ThreadCount];
+      TaskThreads = new TThread[AllowedThreadMax];
 
-      for (int i = 0; i < ThreadCount; i++)
+      for (int i = 0; i < AllowedThreadMax; i++)
       {
         TThread taskThread = new TThread()
         {
@@ -362,7 +362,7 @@ namespace Infrastructure.Tasks
 
       bool IsSafeExited = true;
 
-      if (ActiveThreadCount > 0 && SafeExitWaitHandle != null)
+      if (CurrentThreadCount > 0 && SafeExitWaitHandle != null)
       {
         // 停止时还有任务未执行完成，等待任务执行完成
         // 但在等待指定超时时间后，会强制结束。

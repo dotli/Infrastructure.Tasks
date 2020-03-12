@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Infrastructure.Tasks.Tests
 {
@@ -8,52 +9,53 @@ namespace Infrastructure.Tasks.Tests
     public AutoStopableBackgroundTaskService()
       : base(nameof(AutoStopableBackgroundTaskService))
     {
-      WaitExitTimeout = 10;
     }
 
+    /// <summary>
+    /// The main thread.
+    /// </summary>
     public static new void Run()
     {
       var serviceWaitHandle = new AutoResetEvent(false);
 
       // 初始化具体服务类
-      var conreteService = new AutoStopableBackgroundTaskService();
+      var concreteService = new AutoStopableBackgroundTaskService();
 
-      conreteService.ThreadChanged += (currentThreadCount) =>
+      concreteService.ThreadChanged += (currentThreadCount) =>
       {
-        conreteService.LogTrace("{0}\t    WorkThread-{1} Report CurrentThreadCount = {2}.",
-            DateTime.Now.ToLongTimeString(), Thread.CurrentThread.ManagedThreadId, currentThreadCount);
+        Logger.Trace("Thread-{0} Reported CurrentThreadCount = {1}.",
+            Thread.CurrentThread.ManagedThreadId, currentThreadCount);
 
         if (currentThreadCount == 0)
         {
-          conreteService.Stop();
-          serviceWaitHandle.Set();
+          // Review: 
+          // 增加线程由 DispatchThread 触发
+          // 减少线程由 WorkThread 触发, 最后一个线程会因为 conreteService.Stop() 阻塞
+          //    导致最后一个线程比  conreteService 晚结束。
+          Task.Run(() =>
+          {
+            concreteService.Stop();
+            serviceWaitHandle.Set();
+          });
         }
       };
 
-      conreteService.ServiceCompleted += new Action(() =>
+      concreteService.ServiceCompleted += new Action(() =>
       {
-        conreteService.LogTrace("{0}\t{1} Complete and stoped.",
-            DateTime.Now.ToLongTimeString(),
-            conreteService.ServiceName);
+        Logger.Trace("{0} Completed.", concreteService.ServiceName);
       });
 
       // 开始启动服务。
       // 如果在Windows服务中可以在OnStart事件里面调用
-      conreteService.Start();
+      concreteService.Start();
 
-      conreteService.LogTrace("{0}\t{1} Started\r\n\tAllowedThreadMax={2}, TaskIdleTime={3}ms, TaskBusyTime={4}ms",
-          DateTime.Now.ToLongTimeString(),
-          conreteService.ServiceName,
-          conreteService.AllowedThreadMax.ToString(),
-          conreteService.TaskIdleTime.TotalMilliseconds.ToString(),
-          conreteService.TaskBusyTime.TotalMilliseconds.ToString());
-
+      // wait tasks complete.
+      // serviceWaitHandle.WaitOne(TimeSpan.FromSeconds(30));
       serviceWaitHandle.WaitOne();
 
-      conreteService.LogTrace("{0}\t{1} Exited.",
-          DateTime.Now.ToLongTimeString(),
-          conreteService.ServiceName);
+      Logger.Trace("{0} Exited.", concreteService.ServiceName);
 
+      Console.WriteLine("Press any key to exit.");
       Console.Read();
     }
   }
