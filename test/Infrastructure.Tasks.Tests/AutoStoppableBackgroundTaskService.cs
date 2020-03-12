@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Tasks.Tests
 {
@@ -9,6 +8,9 @@ namespace Infrastructure.Tasks.Tests
     public AutoStopableBackgroundTaskService()
       : base(nameof(AutoStopableBackgroundTaskService))
     {
+      AllowedThreadMax = 10;
+      TaskBusyTime = TimeSpan.FromMilliseconds(50);
+      TaskIdleTime = TimeSpan.FromSeconds(5);
     }
 
     /// <summary>
@@ -21,22 +23,24 @@ namespace Infrastructure.Tasks.Tests
       // 初始化具体服务类
       var concreteService = new AutoStopableBackgroundTaskService();
 
-      concreteService.ThreadChanged += (currentThreadCount) =>
+      concreteService.ThreadStatusChanged += (e) =>
       {
-        Logger.Trace("Thread-{0} Reported CurrentThreadCount = {1}.",
-            Thread.CurrentThread.ManagedThreadId, currentThreadCount);
-
-        if (currentThreadCount == 0)
+        switch (e.Status)
         {
-          // Review: 
-          // 增加线程由 DispatchThread 触发
-          // 减少线程由 WorkThread 触发, 最后一个线程会因为 conreteService.Stop() 阻塞
-          //    导致最后一个线程比  conreteService 晚结束。
-          Task.Run(() =>
-          {
-            concreteService.Stop();
-            serviceWaitHandle.Set();
-          });
+          case ServiceThreadStatus.Initialized:
+            Logger.Trace("  Thread-{0} GetTaskAsync.", Thread.CurrentThread.ManagedThreadId);
+            break;
+          case ServiceThreadStatus.Completed when e.Task != null:
+            Logger.Trace("  Thread-{0} ExecuteTaskAsync(TaskId={1}) completed.", Thread.CurrentThread.ManagedThreadId, e.Task.Id);
+            break;
+          default:
+            Logger.Trace("  Thread-{0} {1}.", Thread.CurrentThread.ManagedThreadId, e.Status.ToString());
+            break;
+        }
+
+        if (e.Status == ServiceThreadStatus.NoTask)
+        {
+          serviceWaitHandle.Set();
         }
       };
 
@@ -52,6 +56,8 @@ namespace Infrastructure.Tasks.Tests
       // wait tasks complete.
       // serviceWaitHandle.WaitOne(TimeSpan.FromSeconds(30));
       serviceWaitHandle.WaitOne();
+
+      concreteService.Stop();
 
       Logger.Trace("{0} Exited.", concreteService.ServiceName);
 

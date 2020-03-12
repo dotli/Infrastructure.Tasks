@@ -25,15 +25,10 @@ namespace Infrastructure.Tasks.Tests
 
     protected override async Task<ConcreteTask> GetTaskAsync()
     {
-      LogTrace("  Thread-{0} GetTaskAsync.", Thread.CurrentThread.ManagedThreadId);
-
-      await Task.Delay(500);
+      await Task.Delay(1000);
 
       // 这里从内存任务队列获取目标任务，也可以是从数据库等其它地方获取。
       ConcreteData.TryDequeue(out ConcreteTask task);
-
-      if (task == null)
-        LogTrace("  Thread-{0} Returned empty task.", Thread.CurrentThread.ManagedThreadId);
 
       // 注意：
       // 如果不需要任务数据时，也请返回一个默认的 BackgroundTask 实例。
@@ -45,8 +40,6 @@ namespace Infrastructure.Tasks.Tests
 
     protected override Task ExecuteTaskAsync(ConcreteTask task)
     {
-      LogTrace("  Thread-{0} ExecuteTaskAsync(TaskId={1}).", Thread.CurrentThread.ManagedThreadId, task.Id);
-
       return Task.Delay(1000);
     }
 
@@ -55,10 +48,21 @@ namespace Infrastructure.Tasks.Tests
       // 初始化具体服务类
       var concreteService = new ConcreteBackgroundTaskService();
 
-      concreteService.ThreadChanged += (currentThreadCount) =>
+      concreteService.ThreadStatusChanged += (e) =>
       {
-        Logger.Trace("Thread-{0} Reported CurrentThreadCount = {1}.",
-            Thread.CurrentThread.ManagedThreadId, currentThreadCount);
+        switch (e.Status)
+        {
+          case ServiceThreadStatus.Initialized:
+            Logger.Trace("  Thread-{0} GetTaskAsync.", Thread.CurrentThread.ManagedThreadId);
+            break;
+          case ServiceThreadStatus.Completed when e.Task != null:
+            Logger.Trace("  Thread-{0} ExecuteTaskAsync(TaskId={1}) completed.",
+              Thread.CurrentThread.ManagedThreadId, e.Task.Id);
+            break;
+          default:
+            Logger.Trace("  Thread-{0} {1}.", Thread.CurrentThread.ManagedThreadId, e.Status.ToString());
+            break;
+        }
       };
 
       // 开始启动服务。

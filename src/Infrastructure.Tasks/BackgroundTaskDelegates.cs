@@ -191,5 +191,59 @@ namespace Infrastructure.Tasks
     }
   }
 
+  /// <summary>
+  /// 定义服务工作线程状态变更事件所需要的参数。
+  /// </summary>
+  public class ServiceThreadStatusChangedEventArgs<TTask> : EventArgs where TTask : BackgroundTask
+  {
+    /// <summary>
+    /// 当前工作线程状态。
+    /// </summary>
+    public ServiceThreadStatus Status { get; set; }
+    /// <summary>
+    /// 关联任务数据对象。
+    /// </summary>
+    public TTask Task { get; set; }
+    /// <summary>
+    /// 任务执行异常。
+    /// </summary>
+    public AggregateException Exception { get; set; }
+    /// <summary>
+    /// 初始化类<see cref="WorkThreadReportEventArgs"/>的新实例。
+    /// </summary>
+    /// <param name="status">当前工作线程状态。</param>
+    public ServiceThreadStatusChangedEventArgs(ServiceThreadStatus status)
+    {
+      Status = status;
+    }
+  }
+
+  /// <summary>
+  /// 工作线程状态。
+  /// </summary>
+  public enum ServiceThreadStatus : byte
+  {
+    /// <summary>
+    /// 初始状态。
+    /// </summary>
+    Initialized = 0,
+    /// <summary>
+    /// 没有任务需要处理。
+    /// </summary>
+    NoTask = 1,
+    /// <summary>
+    /// 即将执行。
+    /// </summary>
+    Executing = 2,
+    /// <summary>
+    /// 处理完成。
+    /// </summary>
+    Completed = 3,
+    /// <summary>
+    /// 处理失败。
+    /// </summary>
+    Falted = 4
+  }
+
   #endregion
 }
