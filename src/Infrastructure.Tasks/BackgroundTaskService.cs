@@ -23,19 +23,15 @@ namespace Infrastructure.Tasks
     /// </summary>
     private bool disposed = false;
     /// <summary>
-    /// 服务运行状态
-    /// </summary>
-    private volatile bool Running = false;
-    /// <summary>
-    /// 目标任务调度主线程控制信号量。
+    /// 通知任务调度线程继续调度任务。
     /// </summary>
     private ManualResetEvent Dispatcher;
     /// <summary>
-    /// 服务安全退出等待信号量。
+    /// 通知全部任务线程已结束，服务可以安全退出了。
     /// </summary>
     private ManualResetEvent ExitGuard;
     /// <summary>
-    /// 获取或设置服务名称
+    /// 获取或设置服务名称。
     /// </summary>
     public string ServiceName { get; protected set; }
     /// <summary>
@@ -43,9 +39,16 @@ namespace Infrastructure.Tasks
     /// </summary>
     /// <remarks>
     /// 当多服务共存时可以根据配置来决定是否启用服务。
-    /// 当ServiceEnabled为true时表示启用服务，为false表示禁用服务。
+    /// 当 ServiceEnabled 为 true 时表示启用服务，为 false 表示禁用服务。
     /// </remarks>
     public bool ServiceEnabled { get; set; } = true;
+    /// <summary>
+    /// 服务运行状态。
+    /// </summary>
+    /// <remarks>
+    /// 根据当前任务调度信号灯的存活状态判断服务是否正在运行，同一时间只会存在一个调度信号灯。
+    /// </remarks>
+    public bool Running { get { return Dispatcher != null; } }
     /// <summary>
     /// 获取或设置任务空闲时调度任务的频率（默认5分钟）。
     /// </summary>
@@ -92,28 +95,28 @@ namespace Infrastructure.Tasks
     /// </summary>
     public bool IsTaskRapid { get; private set; }
     /// <summary>
-    /// 服务主线程安全退出前等待的超时时间。单位：秒，默认值为180。
+    /// 服务主线程安全退出前等待的超时时间。单位：毫秒，默认值为 300000。
     /// </summary>
-    private int exitTimeout = 180;
+    private int exitMillisecondsTimeout = 300000;
     /// <summary>
-    /// 获取或设置服务主线程安全退出前等待的超时时间。单位：秒，默认值为180。
+    /// 获取或设置服务主线程安全退出前等待的超时时间。单位：毫秒，默认值为 300000。
     /// 取值为大于或等于0的整数。设置为0表示无限期等待，直到所有工作线程退出。
     /// </summary>
-    public int ExitTimeout
+    public int ExitMillisecondsTimeout
     {
       get
       {
-        return exitTimeout;
+        return exitMillisecondsTimeout;
       }
       protected set
       {
         if (value < 0)
         {
-          exitTimeout = 0;
+          exitMillisecondsTimeout = 0;
         }
         else
         {
-          exitTimeout = value;
+          exitMillisecondsTimeout = value;
         }
       }
     }
@@ -406,11 +409,10 @@ namespace Infrastructure.Tasks
         {
           // 当有正在工作的线程存在，等待工作线程安全退出
           // 但在等待指定超时时间后，工作线程还未退出，服务会强制结束。
-          TimeSpan timeout = ExitTimeout > 0 ?
-              TimeSpan.FromSeconds(ExitTimeout) :
-              TimeSpan.FromMilliseconds(-1);
+          int timeout = ExitMillisecondsTimeout > 0 ?
+              ExitMillisecondsTimeout : -1;
 
-          LogTrace("Thread-{0} ExitGuard.WaitOne({1}s).", CurrentThreadId, timeout.TotalSeconds);
+          LogTrace("Thread-{0} ExitGuard.WaitOne({1}ms).", CurrentThreadId, timeout);
           ExitGuard.Reset();
           ExitGuard.WaitOne(timeout);
           ExitGuard.Dispose();
