@@ -10,9 +10,9 @@
     <PackageProjectUrl>https://github.com/dotli/Infrastructure.Tasks</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dotli/Infrastructure.Tasks.git</RepositoryUrl>
     <PackageTags>netcore background task</PackageTags>
-    <Version>2.0.2</Version>
-    <AssemblyVersion>2.0.2.0</AssemblyVersion>
-    <FileVersion>2.0.2.0</FileVersion>
+    <Version>2.1.0</Version>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
+    <FileVersion>2.1.0.0</FileVersion>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
